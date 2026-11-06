@@ -1,0 +1,444 @@
+OPTION LABELS
+' THE INCA WALL - SamPr Basic version (MSX-DOS .COM, compiled to Z80). Take every red chakana, avoid the four guardians.
+' 90 seconds a level, 3 lives; cursor keys or joystick, SPACE / fire starts. Same game and graphics as the assembly original (../../ASM).
+DIM gb(524), fx(127), fs(6), ex(3), ef(3), ey(3), eg(3), edx(3), edy(3), rm(31), ms(127), mz(17), pr(63), dd(17), t8(255), ecol(3)
+SCREEN 1, 2
+COLOR 15, 1, 1
+j = 0
+FOR i = 1 TO 3 : READ d$ : GOSUB dec : NEXT i
+FOR k = 0 TO 255 : VPOKE k, gb(k) : NEXT k
+FOR k = 0 TO 31 : VPOKE 104 * 8 + k, gb(256 + k) : NEXT k
+FOR k = 0 TO 63 : VPOKE 112 * 8 + k, gb(288 + k) : NEXT k
+FOR k = 0 TO 7 : VPOKE 120 * 8 + k, gb(352 + k) : NEXT k
+VFILL 96 * 8, 64, 0
+VFILL 8192, 32, 241 : VFILL 8192, 2, 27 : VFILL 8194, 2, 22 : VPOKE 8205, 145 : VPOKE 8207, 177
+FOR n = 0 TO 3
+a$ = ""
+FOR k = 0 TO 31 : a$ = a$ + CHR$(gb(392 + n * 32 + k)) : NEXT k
+SPRITE$(n) = a$
+NEXT n
+j = 1
+FOR n = 1 TO 6
+fs(n) = j
+DO
+READ v
+fx(j) = v : j = j + 1
+IF v = 0 THEN EXIT DO
+FOR k = 1 TO 3 : READ fx(j) : j = j + 1 : NEXT k
+LOOP
+NEXT n
+READ d$ : j = 0 : GOSUB dec
+FOR k = 0 TO 122 : ms(k) = gb(k) : NEXT k
+mz(0) = 0 : mz(1) = 49 : mz(2) = 110
+mz(12) = 13 : mz(13) = 12 : mz(14) = 9 : mz(15) = 11 : mz(16) = 6 : mz(17) = 7
+FOR i = 0 TO 11 : READ v : p = v
+FOR k = 0 TO 3 : pr(k * 16 + i) = p : p = p \ 2 : NEXT k
+NEXT i
+FOR d = 0 TO 17 : READ dd(d) : NEXT d
+FOR i = 0 TO 255 : t8(i) = i \ 8 : NEXT i
+ecol(0) = 13 : ecol(1) = 7 : ecol(2) = 3 : ecol(3) = 5
+fps = 50
+IF (PEEK(&HFFE8) AND 2) = 0 THEN fps = 60
+hH = 0 : hL = 0 : sp = 0 : sw = 0 : spr = 0 : bardirty = 0 : huddirty = 0 : frm = 0
+RANDOMIZE TIMER
+GOSUB title
+lt = TIMER
+DO
+WHILE TIMER = lt : WEND
+lt = TIMER
+frm = frm + 1
+GOSUB sfxtick
+SELECT CASE st
+CASE 0 : GOSUB runtitle
+CASE 1 : GOSUB runready
+CASE 2 : GOSUB runplay
+CASE 3 : GOSUB rundie
+CASE 4 : GOSUB runbonus
+CASE 5 : GOSUB runover
+END SELECT
+LOOP
+
+dec:
+FOR k = 1 TO LEN(d$) STEP 4
+a = ASC(MID$(d$, k, 1)) - 48 : f = ASC(MID$(d$, k + 1, 1)) - 48 : p = ASC(MID$(d$, k + 2, 1)) - 48 : r = ASC(MID$(d$, k + 3, 1)) - 48
+gb(j) = a * 4 + f \ 16 : gb(j + 1) = (f AND 15) * 16 + p \ 4 : gb(j + 2) = (p AND 3) * 64 + r
+j = j + 3
+NEXT k
+RETURN
+
+title:
+VDP(1) = 162
+VFILL 6144, 768, 96
+r = 2 : GOSUB band
+r = 19 : GOSUB band
+VWRITE 6144 + 6 * 32 + 9, "THE INCA WALL"
+VWRITE 6144 + 9 * 32 + 3, "TAKE ALL THE RED CHAKANAS"
+VWRITE 6144 + 11 * 32 + 6, "AVOID THE GUARDIANS"
+VWRITE 6144 + 13 * 32 + 5, "PUSH SPACE OR TRIGGER"
+VWRITE 6144 + 16 * 32 + 10, "HI"
+VWRITE 6144 + 16 * 32 + 14, MID$(STR$(hH + 100), 3) + MID$(STR$(hL + 10000), 3)
+VWRITE 6144 + 23 * 32 + 7, "(C) 2026 F.PRACEK"
+FOR i = 0 TO 4 : PUT SPRITE i : NEXT i
+st = 0 : tm = 0 : sp = 0 : sprio = 0
+VDP(1) = 226
+SOUND 7, 184
+FOR c = 0 TO 2 : mz(3 + c) = mz(c) : mz(6 + c) = 0 : mz(9 + c) = 0 : NEXT c
+RETURN
+
+band:
+a$ = "" : b$ = ""
+FOR k = 1 TO 16
+m = RND(8)
+a$ = a$ + CHR$(m) + CHR$(m + 8) : b$ = b$ + CHR$(m + 16) + CHR$(m + 24)
+NEXT k
+VWRITE 6144 + r * 32, a$
+VWRITE 6144 + r * 32 + 32, b$
+RETURN
+
+runtitle:
+GOSUB mustick
+tm = tm + 1
+IF (tm AND 31) = 0 THEN
+IF (tm AND 32) = 0 THEN VWRITE 6144 + 13 * 32 + 5, "PUSH SPACE OR TRIGGER" ELSE VWRITE 6144 + 13 * 32 + 5, "                     "
+END IF
+IF tm > 40 THEN
+IF STRIG(0) OR STRIG(1) THEN GOTO gamestart
+END IF
+RETURN
+
+mustick:
+FOR c = 0 TO 2
+IF mz(6 + c) > 0 THEN
+mz(6 + c) = mz(6 + c) - 1
+ELSE
+p = mz(3 + c)
+IF ms(p) = 254 THEN p = mz(c)
+n = ms(p) : mz(6 + c) = ms(p + 1) : mz(3 + c) = p + 2
+IF n = 255 THEN
+mz(9 + c) = 0
+ELSE
+f = pr(n)
+SOUND c + c, f AND 255
+SOUND c + c + 1, f \ 256
+mz(9 + c) = mz(12 + c)
+END IF
+END IF
+v = mz(9 + c)
+IF v > 0 THEN
+IF mz(15 + c) < v THEN
+IF (frm AND 3) = 0 THEN v = v - 1 : mz(9 + c) = v
+END IF
+END IF
+SOUND 8 + c, v
+NEXT c
+RETURN
+
+gamestart:
+SOUND 8, 0 : SOUND 9, 0 : SOUND 10, 0
+SOUND 7, 190
+sH = 0 : sL = 0 : lives = 3 : lv = 1 : sprio = 0 : sp = 0
+RANDOMIZE TIMER
+levelstart:
+VDP(1) = 162
+FOR i = 0 TO 9
+a$ = "" : b$ = ""
+FOR k = 0 TO 15
+m = RND(8)
+a$ = a$ + CHR$(m) + CHR$(m + 8) : b$ = b$ + CHR$(m + 16) + CHR$(m + 24)
+NEXT k
+VWRITE 6144 + i * 64, a$
+VWRITE 6144 + i * 64 + 32, b$
+NEXT i
+VFILL 6144 + 640, 128, 96
+VFILL 6144 + 704, 64, 96
+rc = RND(3) + 3
+FOR i = 0 TO rc - 1
+rm(16 + i) = RND(3) + 2 : rm(24 + i) = RND(2) + 2
+rm(i) = RND(15 - rm(16 + i)) + 1 : rm(8 + i) = RND(9 - rm(24 + i)) + 1
+FOR j = 0 TO rm(24 + i) * 2 - 1
+VFILL 6144 + (rm(8 + i) * 2 + j) * 32 + rm(i) * 2, rm(16 + i) * 2, 96
+NEXT j
+NEXT i
+red = lv + 4 : IF red > 9 THEN red = 9
+FOR i = 1 TO red
+FOR k = 1 TO 12
+q = RND(rc)
+a = 6144 + (rm(8 + q) + RND(rm(24 + q))) * 64 + (rm(q) + RND(rm(16 + q))) * 2
+IF VPEEK(a) = 96 THEN
+VWRITE a, CHR$(104) + CHR$(104 + 1) : VWRITE a + 32, CHR$(104 + 2) + CHR$(104 + 3)
+EXIT FOR
+END IF
+NEXT k
+IF k > 12 THEN red = red - 1
+NEXT i
+GOSUB actors
+tt = 90 * fps : tl = tt : sf = fps : secs2 = 90 : tacc = 0 : bpx = 256 : bardirty = 1 : huddirty = 1
+VDP(1) = 226
+sfn = 3 : GOSUB sfxplay
+ready:
+msg$ = "READY!" : mc = 13 : GOSUB msgshow
+st = 1 : tm = 80
+GOSUB sprites
+RETURN
+
+actors:
+px = 120 : py = 72 : pan = 0 : pfr = 0 : pvis = 1
+FOR i = 0 TO 3
+ex(i) = 8 + (i AND 1) * 224 : ey(i) = 8 + (i \ 2) * 128 : ef(i) = 0 : eg(i) = 0
+edx(i) = 1 : edy(i) = 1
+NEXT i
+espd = 10 + (lv - 1) * 1
+IF espd > 15 THEN espd = 15
+RETURN
+
+msgshow:
+sv$ = VREAD$(6144 + 10 * 32 + mc, LEN(msg$))
+VWRITE 6144 + 10 * 32 + mc, msg$
+RETURN
+
+runready:
+GOSUB sprites
+tm = tm - 1
+IF tm = 0 THEN
+VWRITE 6144 + 10 * 32 + mc, sv$
+st = 2
+END IF
+RETURN
+
+runplay:
+d = STICK(0) : IF d = 0 THEN d = STICK(1)
+IF d > 0 THEN
+px = px + dd(d + d) * 2 : py = py + dd(d + d + 1) * 2
+IF px < 0 THEN px = 0
+IF px > 240 THEN px = 240
+IF py < 0 THEN py = 0
+IF py > 144 THEN py = 144
+pan = pan + 1
+IF (pan AND 8) = 0 THEN pfr = 0 ELSE pfr = 1
+END IF
+GOSUB enemies
+GOSUB pickup
+GOSUB sprites
+IF red = 0 THEN
+st = 4
+RETURN
+END IF
+GOSUB tick
+IF tl < 0 THEN GOTO die
+FOR i = 0 TO 3
+IF ABS(ex(i) - px) < 12 AND ABS(ey(i) - py) < 12 THEN GOTO die
+NEXT i
+RETURN
+
+tick:
+IF tl = 0 THEN
+tl = -1
+RETURN
+END IF
+tl = tl - 1 : sf = sf - 1
+IF sf = 0 THEN
+sf = fps
+IF secs2 > 0 THEN secs2 = secs2 - 1
+END IF
+tacc = tacc + 256
+IF tacc >= tt THEN
+tacc = tacc - tt
+IF bpx > 0 THEN bpx = bpx - 1 : bardirty = 1
+END IF
+RETURN
+
+enemies:
+FOR i = 0 TO 3
+t = i
+IF t <> 2 THEN
+a = px - ex(i) : edx(i) = SGN(a) : l = ABS(a)
+a = py - ey(i) : edy(i) = SGN(a) : m = ABS(a)
+IF t = 1 THEN
+IF m >= l THEN edx(i) = 0 ELSE edy(i) = 0
+ELSEIF t = 3 THEN
+IF (frm AND 64) <> 0 THEN edx(i) = -edx(i)
+END IF
+END IF
+d = edx(i)
+IF d > 0 THEN
+f = eg(i) + espd
+IF f >= 16 THEN
+f = f - 16 : p = ex(i) + 1
+IF p > 240 THEN p = 240 : f = 0 : edx(i) = -d
+ex(i) = p
+END IF
+eg(i) = f
+ELSEIF d < 0 THEN
+f = eg(i) - espd
+IF f < 0 THEN
+f = f + 16 : p = ex(i) - 1
+IF p < 0 THEN p = 0 : f = 0 : edx(i) = -d
+ex(i) = p
+END IF
+eg(i) = f
+END IF
+d = edy(i)
+IF d > 0 THEN
+f = ef(i) + espd
+IF f >= 16 THEN
+f = f - 16 : p = ey(i) + 1
+IF p > 144 THEN p = 144 : f = 0 : edy(i) = -d
+ey(i) = p
+END IF
+ef(i) = f
+ELSEIF d < 0 THEN
+f = ef(i) - espd
+IF f < 0 THEN
+f = f + 16 : p = ey(i) - 1
+IF p < 0 THEN p = 0 : f = 0 : edy(i) = -d
+ey(i) = p
+END IF
+ef(i) = f
+END IF
+NEXT i
+RETURN
+
+pickup:
+r = t8(py + 8) : c = t8(px + 8)
+IF r < 20 THEN
+a = VPEEK(6144 + r * 32 + c)
+IF a >= 104 AND a < 104 + 4 THEN
+a = 6144 + (r AND 254) * 32 + (c AND 254)
+VWRITE a, CHR$(96) + CHR$(96) : VWRITE a + 32, CHR$(96) + CHR$(96)
+red = red - 1
+p = 100 : GOSUB addscore
+sfn = 1 : GOSUB sfxplay
+END IF
+END IF
+RETURN
+
+addscore:
+l = sH
+sL = sL + p
+IF sL >= 10000 THEN sL = sL - 10000 : sH = sH + 1
+IF sH <> l AND lives < 3 THEN
+lives = lives + 1
+sfn = 6 : GOSUB sfxplayhi
+END IF
+IF sH > hH OR (sH = hH AND sL > hL) THEN hH = sH : hL = sL
+huddirty = 1
+RETURN
+
+sprites:
+spr = spr + 1 : IF spr > 4 THEN spr = 0
+q = spr
+FOR i = 0 TO 4
+IF i = 0 THEN
+IF pvis THEN PUT SPRITE q, (px, py), 15, pfr ELSE PUT SPRITE q, (0, 200), 15, 0
+ELSE
+PUT SPRITE q, (ex(i - 1), ey(i - 1)), ecol(i - 1), 2 + ((frm AND 16) <> 0)
+END IF
+q = q + 1 : IF q > 4 THEN q = 0
+NEXT i
+IF bardirty THEN
+bardirty = 0
+w = bpx AND 7 : n = bpx \ 8
+a$ = ""
+FOR k = 1 TO n : a$ = a$ + CHR$(112 + 7) : NEXT k
+IF w > 0 AND n < 32 THEN a$ = a$ + CHR$(112 + w - 1) : n = n + 1
+FOR k = n + 1 TO 32 : a$ = a$ + CHR$(96) : NEXT k
+c = 145 : IF bpx > 64 THEN c = 177
+IF bpx > 128 THEN c = 49
+VPOKE 8192 + 14, c
+VWRITE 6144 + 21 * 32, a$
+END IF
+IF huddirty THEN
+huddirty = 0
+a$ = ""
+FOR k = 1 TO lives : a$ = a$ + CHR$(120) : NEXT k
+a$ = LEFT$(a$ + "    ", 4) + MID$(STR$(sH + 100), 3) + MID$(STR$(sL + 10000), 3) + " HI "
+a$ = a$ + MID$(STR$(hH + 100), 3) + MID$(STR$(hL + 10000), 3) + "  LV "
+l = lv : IF l > 99 THEN l = 99
+VWRITE 6144 + 22 * 32, a$ + MID$(STR$(l + 100), 3)
+END IF
+RETURN
+
+die:
+st = 3 : tm = 110
+sfn = 4 : GOSUB sfxplay
+RETURN
+
+rundie:
+IF (frm AND 4) = 0 THEN pvis = 0 ELSE pvis = 1
+GOSUB sprites
+tm = tm - 1
+IF tm = 0 THEN
+pvis = 1
+lives = lives - 1
+huddirty = 1
+IF lives = 0 THEN
+GOSUB sprites
+FOR i = 0 TO 4 : PUT SPRITE i : NEXT i
+msg$ = "GAME OVER" : mc = 11 : GOSUB msgshow
+st = 5 : tm = 180
+sfn = 5 : GOSUB sfxplay
+ELSE
+GOSUB actors
+GOTO ready
+END IF
+END IF
+RETURN
+
+runover:
+tm = tm - 1
+IF tm = 0 THEN GOSUB title
+RETURN
+
+runbonus:
+GOSUB sprites
+FOR k = 1 TO 15
+l = secs2
+GOSUB tick
+IF secs2 <> l THEN
+p = 10 : GOSUB addscore
+sfn = 2 : GOSUB sfxplay
+END IF
+NEXT k
+IF tl <= 0 THEN
+IF lv < 255 THEN lv = lv + 1
+GOTO levelstart
+END IF
+RETURN
+
+sfxplay:
+IF sprio = 0 THEN sp = fs(sfn) : sw = 0
+RETURN
+
+sfxplayhi:
+sp = fs(sfn) : sw = 0 : sprio = 44
+RETURN
+
+sfxtick:
+IF sprio > 0 THEN sprio = sprio - 1
+IF sw > 0 THEN
+sw = sw - 1
+RETURN
+END IF
+IF sp = 0 THEN RETURN
+n = fx(sp)
+IF n = 0 THEN
+SOUND 8, 0 : sp = 0
+RETURN
+END IF
+sw = n - 1
+SOUND 0, fx(sp + 1) : SOUND 1, fx(sp + 2) : SOUND 8, fx(sp + 3)
+sp = sp + 4
+RETURN
+
+DATA "oh20P820P87oP9nOV9VIVOn0PH67QinOoh20P820ooooPH61PH61POn0P820PH6Ooh27Qhb<V9SoP9nOV9nOPOl10@410@61o`7inAWinH7o0N7QnOWoool10@410Ooooh61PH61PH7o0@4O7oooool1nOT=3@L7o`7inAVIVIV1P820P820oiVIVIROWh3oQhN1PH20P?n0P820P820oh61PH61PH7oWh20P820"
+DATA "P?nHV9nOP820oh6OWh2OWh3oP@410@410On1nOT1nOT1ooWihN410@7o0@410@410On1PH61PH61ool10@410@7o1`Ooo`410OnIVITInOT1o`000`<?3gQh0030`?3`7QihN0l?0`<001hNl?30`0000820P820P000`<30`<30003Ph>3Ph>000?3`l?3`l000n?Shn?Sh003lo?clo?`00?kno_knoP00oooo"
+DATA "oooo03anfooKOS`04A\K5QJA<O7alO7alO7a\O7alO7alO7alO7alO7alO401`lI6AlL3`LO?cLg1``L0>3`V9Sh>?3Pn?c\k>0`>0073aTI7a`?1alo=cL73SP0h?2HV?Phl>3ho>c\h70L00<?7cdkOgmhOClo7`dH<030l?Rlg?kn7[klo?R`60`00`lO>ceoOgQm?clO3``60<3`n=blo_hN__cln?0`H000"
+DATA 2,112,0,13, 2,84,0,13, 3,56,0,12, 0
+DATA 2,113,0,14, 4,85,0,13, 0
+DATA 4,213,0,12, 4,169,0,12, 4,142,0,12, 8,107,0,13, 0
+DATA 4,107,0,14, 4,135,0,14, 4,169,0,13, 4,213,0,13, 4,254,0,12, 4,100,1,12, 6,200,1,11, 8,44,2,10, 0
+DATA 10,107,0,13, 10,142,0,13, 10,179,0,13, 30,213,0,12, 0
+DATA 4,214,0,15, 4,170,0,15, 4,143,0,15, 4,107,0,15, 4,85,0,15, 4,71,0,15, 4,85,0,15, 14,53,0,15, 0
+DATA "91\R2B0B8Q8P4QTToa8P4R8990TW4R@T8Q8P4_lB:A8W2B@98Q8P4QTT50TG2ATBoPTBo`T94_l92A874_l91a;o2@LB1A;o2@DBo`T54P@Bo`T44_l911894_l92A;o2@TB11;o2@@Bo`T44_hDB19844P;B1A82dSn"
+DATA 855,807,762,719,679,641,605,571,539,508,480,453
+DATA 0,0, 0,-1, 1,-1, 1,0, 1,1, 0,1, -1,1, -1,0, -1,-1
