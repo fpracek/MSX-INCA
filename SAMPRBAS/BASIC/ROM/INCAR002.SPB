@@ -1,0 +1,184 @@
+' Segment 2: new game, level set-up, play loop, enemies, pick-ups and score.
+
+SUB actors
+ SHARED px, py, pan, pfr, pvis, ex, ey, ef, eg, edx, edy, espd, lv
+ px = 120 : py = 72 : pan = 0 : pfr = 0 : pvis = 1
+ FOR i = 0 TO 3
+  ex(i) = 8 + (i AND 1) * 224 : ey(i) = 8 + (i \ 2) * 128 : ef(i) = 0 : eg(i) = 0
+  edx(i) = 1 : edy(i) = 1
+ NEXT i
+ espd = 10 + (lv - 1) * 1
+ IF espd > 15 THEN espd = 15
+END SUB
+
+SUB msgshow
+ SHARED msg$, mc, sv$
+ sv$ = VREAD$(6144 + 10 * 32 + mc, LEN(msg$))
+ VWRITE 6144 + 10 * 32 + mc, msg$
+END SUB
+
+SUB ready
+ SHARED msg$, mc, st, tm
+ msg$ = "READY!" : mc = 13 : CALL msgshow
+ st = 1 : tm = 80
+ CALL sprites
+END SUB
+
+' New level: random walls, red chakanas and actors.
+SUB levelstart
+ SHARED rm, red, lv, tt, tl, sf, secs2, tacc, bpx, bardirty, huddirty, fps, sfn
+ VDP(1) = 162
+ FOR i = 0 TO 9
+  a$ = "" : b$ = ""
+  FOR k = 0 TO 15
+   m = RND(8)
+   a$ = a$ + CHR$(m) + CHR$(m + 8) : b$ = b$ + CHR$(m + 16) + CHR$(m + 24)
+  NEXT k
+  VWRITE 6144 + i * 64, a$
+  VWRITE 6144 + i * 64 + 32, b$
+ NEXT i
+ VFILL 6144 + 640, 128, 96
+ VFILL 6144 + 704, 64, 96
+ rc = RND(3) + 3
+ FOR i = 0 TO rc - 1
+  rm(16 + i) = RND(3) + 2 : rm(24 + i) = RND(2) + 2
+  rm(i) = RND(15 - rm(16 + i)) + 1 : rm(8 + i) = RND(9 - rm(24 + i)) + 1
+  FOR j = 0 TO rm(24 + i) * 2 - 1
+   VFILL 6144 + (rm(8 + i) * 2 + j) * 32 + rm(i) * 2, rm(16 + i) * 2, 96
+  NEXT j
+ NEXT i
+ red = lv + 4 : IF red > 9 THEN red = 9
+ FOR i = 1 TO red
+  FOR k = 1 TO 12
+   q = RND(rc)
+   a = 6144 + (rm(8 + q) + RND(rm(24 + q))) * 64 + (rm(q) + RND(rm(16 + q))) * 2
+   IF VPEEK(a) = 96 THEN
+    VWRITE a, CHR$(104) + CHR$(104 + 1) : VWRITE a + 32, CHR$(104 + 2) + CHR$(104 + 3)
+    EXIT FOR
+   END IF
+  NEXT k
+  IF k > 12 THEN red = red - 1
+ NEXT i
+ CALL actors
+ tt = 90 * fps : tl = tt : sf = fps : secs2 = 90 : tacc = 0 : bpx = 256 : bardirty = 1 : huddirty = 1
+ VDP(1) = 226
+ sfn = 3 : CALL sfxplay
+ CALL ready
+END SUB
+
+SUB gamestart
+ SHARED sH, sL, lives, lv, sprio, sp
+ SOUND 8, 0 : SOUND 9, 0 : SOUND 10, 0
+ SOUND 7, 190
+ sH = 0 : sL = 0 : lives = 3 : lv = 1 : sprio = 0 : sp = 0
+ RANDOMIZE TIMER
+ CALL levelstart
+END SUB
+
+SUB runready
+ SHARED msg$, mc, sv$, st, tm
+ CALL sprites
+ tm = tm - 1
+ IF tm = 0 THEN
+  VWRITE 6144 + 10 * 32 + mc, sv$
+  st = 2
+ END IF
+END SUB
+
+SUB tick
+ SHARED tl, sf, fps, secs2, tacc, tt, bpx, bardirty
+ IF tl = 0 THEN
+  tl = -1
+  EXIT SUB
+ END IF
+ tl = tl - 1 : sf = sf - 1
+ IF sf = 0 THEN
+  sf = fps
+  IF secs2 > 0 THEN secs2 = secs2 - 1
+ END IF
+ tacc = tacc + 256
+ IF tacc >= tt THEN
+  tacc = tacc - tt
+  IF bpx > 0 THEN bpx = bpx - 1 : bardirty = 1
+ END IF
+END SUB
+
+SUB enemies
+ SHARED px, py, ex, ey, ef, eg, edx, edy, espd, frm
+ FOR i = 0 TO 3
+  t = i
+  IF t <> 2 THEN
+   a = px - ex(i) : edx(i) = SGN(a) : l = ABS(a)
+   a = py - ey(i) : edy(i) = SGN(a) : m = ABS(a)
+   IF t = 1 THEN
+    IF m >= l THEN edx(i) = 0 ELSE edy(i) = 0
+   ELSEIF t = 3 THEN
+    IF (frm AND 64) <> 0 THEN edx(i) = -edx(i)
+   END IF
+  END IF
+  d = edx(i)
+  IF d > 0 THEN
+   f = eg(i) + espd
+   IF f >= 16 THEN
+    f = f - 16 : p = ex(i) + 1
+    IF p > 240 THEN p = 240 : f = 0 : edx(i) = -d
+    ex(i) = p
+   END IF
+   eg(i) = f
+  ELSEIF d < 0 THEN
+   f = eg(i) - espd
+   IF f < 0 THEN
+    f = f + 16 : p = ex(i) - 1
+    IF p < 0 THEN p = 0 : f = 0 : edx(i) = -d
+    ex(i) = p
+   END IF
+   eg(i) = f
+  END IF
+  d = edy(i)
+  IF d > 0 THEN
+   f = ef(i) + espd
+   IF f >= 16 THEN
+    f = f - 16 : p = ey(i) + 1
+    IF p > 144 THEN p = 144 : f = 0 : edy(i) = -d
+    ey(i) = p
+   END IF
+   ef(i) = f
+  ELSEIF d < 0 THEN
+   f = ef(i) - espd
+   IF f < 0 THEN
+    f = f + 16 : p = ey(i) - 1
+    IF p < 0 THEN p = 0 : f = 0 : edy(i) = -d
+    ey(i) = p
+   END IF
+   ef(i) = f
+  END IF
+ NEXT i
+END SUB
+
+SUB addscore
+ SHARED sH, sL, hH, hL, lives, sfn, huddirty, p
+ l = sH
+ sL = sL + p
+ IF sL >= 10000 THEN sL = sL - 10000 : sH = sH + 1
+ IF sH <> l AND lives < 3 THEN
+  lives = lives + 1
+  sfn = 6 : CALL sfxplayhi
+ END IF
+ IF sH > hH OR (sH = hH AND sL > hL) THEN hH = sH : hL = sL
+ huddirty = 1
+END SUB
+
+SUB pickup
+ SHARED px, py, t8, red, p, sfn
+ r = t8(py + 8) : c = t8(px + 8)
+ IF r < 20 THEN
+  a = VPEEK(6144 + r * 32 + c)
+  IF a >= 104 AND a < 104 + 4 THEN
+   a = 6144 + (r AND 254) * 32 + (c AND 254)
+   VWRITE a, CHR$(96) + CHR$(96) : VWRITE a + 32, CHR$(96) + CHR$(96)
+   red = red - 1
+   p = 100 : CALL addscore
+   sfn = 1 : CALL sfxplay
+  END IF
+ END IF
+END SUB

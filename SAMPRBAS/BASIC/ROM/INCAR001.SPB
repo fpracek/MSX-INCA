@@ -1,0 +1,127 @@
+' Segment 1: start-up (graphics, tables), title screen and music.
+
+' Decodes the 6-bit string d$ (4 characters = 3 bytes) into gb() from index j.
+SUB dec
+ SHARED gb, d$, j
+ FOR k = 1 TO LEN(d$) STEP 4
+  a = ASC(MID$(d$, k, 1)) - 48 : f = ASC(MID$(d$, k + 1, 1)) - 48 : p = ASC(MID$(d$, k + 2, 1)) - 48 : r = ASC(MID$(d$, k + 3, 1)) - 48
+  gb(j) = a * 4 + f \ 16 : gb(j + 1) = (f AND 15) * 16 + p \ 4 : gb(j + 2) = (p AND 3) * 64 + r
+  j = j + 3
+ NEXT k
+END SUB
+
+SUB setup
+ SHARED gb, fx, fs, ms, mz, pr, dd, t8, ecol, d$, j
+ SHARED fps, hH, hL, sp, sw, spr, bardirty, huddirty, frm
+ j = 0
+ FOR i = 1 TO 3 : READ d$ : CALL dec : NEXT i
+ FOR k = 0 TO 255 : VPOKE k, gb(k) : NEXT k
+ FOR k = 0 TO 31 : VPOKE 104 * 8 + k, gb(256 + k) : NEXT k
+ FOR k = 0 TO 63 : VPOKE 112 * 8 + k, gb(288 + k) : NEXT k
+ FOR k = 0 TO 7 : VPOKE 120 * 8 + k, gb(352 + k) : NEXT k
+ VFILL 96 * 8, 64, 0
+ VFILL 8192, 32, 241 : VFILL 8192, 2, 27 : VFILL 8194, 2, 22 : VPOKE 8205, 145 : VPOKE 8207, 177
+ FOR n = 0 TO 3
+  a$ = ""
+  FOR k = 0 TO 31 : a$ = a$ + CHR$(gb(392 + n * 32 + k)) : NEXT k
+  SPRITE$(n) = a$
+ NEXT n
+ j = 1
+ FOR n = 1 TO 6
+  fs(n) = j
+  DO
+   READ v
+   fx(j) = v : j = j + 1
+   IF v = 0 THEN EXIT DO
+   FOR k = 1 TO 3 : READ fx(j) : j = j + 1 : NEXT k
+  LOOP
+ NEXT n
+ READ d$ : j = 0 : CALL dec
+ FOR k = 0 TO 122 : ms(k) = gb(k) : NEXT k
+ mz(0) = 0 : mz(1) = 49 : mz(2) = 110
+ mz(12) = 13 : mz(13) = 12 : mz(14) = 9 : mz(15) = 11 : mz(16) = 6 : mz(17) = 7
+ FOR i = 0 TO 11
+  READ v : p = v
+  FOR k = 0 TO 3 : pr(k * 16 + i) = p : p = p \ 2 : NEXT k
+ NEXT i
+ FOR d = 0 TO 17 : READ dd(d) : NEXT d
+ FOR i = 0 TO 255 : t8(i) = i \ 8 : NEXT i
+ ecol(0) = 13 : ecol(1) = 7 : ecol(2) = 3 : ecol(3) = 5
+ fps = 50
+ IF (PEEK(&HFFE8) AND 2) = 0 THEN fps = 60
+ hH = 0 : hL = 0 : sp = 0 : sw = 0 : spr = 0 : bardirty = 0 : huddirty = 0 : frm = 0
+ RANDOMIZE TIMER
+END SUB
+
+' Decorated band of two rows of tiles at row r.
+SUB band
+ SHARED r
+ a$ = "" : b$ = ""
+ FOR k = 1 TO 16
+  m = RND(8)
+  a$ = a$ + CHR$(m) + CHR$(m + 8) : b$ = b$ + CHR$(m + 16) + CHR$(m + 24)
+ NEXT k
+ VWRITE 6144 + r * 32, a$
+ VWRITE 6144 + r * 32 + 32, b$
+END SUB
+
+SUB title
+ SHARED hH, hL, mz, st, tm, sp, sprio, r
+ VDP(1) = 162
+ VFILL 6144, 768, 96
+ r = 2 : CALL band
+ r = 19 : CALL band
+ VWRITE 6144 + 6 * 32 + 9, "THE INCA WALL"
+ VWRITE 6144 + 9 * 32 + 3, "TAKE ALL THE RED CHAKANAS"
+ VWRITE 6144 + 11 * 32 + 6, "AVOID THE GUARDIANS"
+ VWRITE 6144 + 13 * 32 + 5, "PUSH SPACE OR TRIGGER"
+ VWRITE 6144 + 16 * 32 + 10, "HI"
+ VWRITE 6144 + 16 * 32 + 14, MID$(STR$(hH + 100), 3) + MID$(STR$(hL + 10000), 3)
+ VWRITE 6144 + 23 * 32 + 7, "(C) 2026 F.PRACEK"
+ FOR i = 0 TO 4 : PUT SPRITE i : NEXT i
+ st = 0 : tm = 0 : sp = 0 : sprio = 0
+ VDP(1) = 226
+ SOUND 7, 184
+ FOR c = 0 TO 2 : mz(3 + c) = mz(c) : mz(6 + c) = 0 : mz(9 + c) = 0 : NEXT c
+END SUB
+
+' Three-voice tune: one step per frame.
+SUB mustick
+ SHARED mz, ms, pr, frm
+ FOR c = 0 TO 2
+  IF mz(6 + c) > 0 THEN
+   mz(6 + c) = mz(6 + c) - 1
+  ELSE
+   p = mz(3 + c)
+   IF ms(p) = 254 THEN p = mz(c)
+   n = ms(p) : mz(6 + c) = ms(p + 1) : mz(3 + c) = p + 2
+   IF n = 255 THEN
+    mz(9 + c) = 0
+   ELSE
+    f = pr(n)
+    SOUND c + c, f AND 255
+    SOUND c + c + 1, f \ 256
+    mz(9 + c) = mz(12 + c)
+   END IF
+  END IF
+  v = mz(9 + c)
+  IF v > 0 THEN
+   IF mz(15 + c) < v THEN
+    IF (frm AND 3) = 0 THEN v = v - 1 : mz(9 + c) = v
+   END IF
+  END IF
+  SOUND 8 + c, v
+ NEXT c
+END SUB
+
+SUB runtitle
+ SHARED tm
+ CALL mustick
+ tm = tm + 1
+ IF (tm AND 31) = 0 THEN
+  IF (tm AND 32) = 0 THEN VWRITE 6144 + 13 * 32 + 5, "PUSH SPACE OR TRIGGER" ELSE VWRITE 6144 + 13 * 32 + 5, "                     "
+ END IF
+ IF tm > 40 THEN
+  IF STRIG(0) OR STRIG(1) THEN CALL gamestart
+ END IF
+END SUB

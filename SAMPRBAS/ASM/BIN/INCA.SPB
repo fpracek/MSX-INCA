@@ -1,0 +1,861 @@
+OPTION TARGET BIN
+OPTION ASM
+start:
+ld a,1
+ld ix,95
+call bios
+ld a,162
+call r1
+ld a,241
+out (99h),a
+ld a,87h
+out (99h),a
+ld hl,run5+187
+ld de,0
+ld bc,24
+call ldv
+ld de,64
+ld bc,24
+call ldv
+ld de,128
+ld bc,24
+call ldv
+ld de,192
+ld bc,24
+call ldv
+ld de,832
+ld bc,32
+call ldv
+ld de,14336
+ld bc,64
+call ldv
+ld hl,run5+46
+ld de,8192
+ld bc,16
+call ldv
+ld hl,8208
+ld bc,16
+ld a,241
+call fil
+ld hl,768
+ld bc,64
+xor a
+call fil
+ld hl,952
+ld bc,8
+ld a,255
+call fil
+ld a,208
+ld (v+70+20),a
+ld a,(65512)
+and 2
+ld a,141
+jr nz,$+4
+ld a,169
+ld (v+12),a
+ld a,(64670)
+ld (v+19),a
+call title
+mloop:
+halt
+ld hl,v+10
+inc (hl)
+ld a,(v+0)
+add a,a
+ld e,a
+ld d,0
+ld hl,mloop+25
+add hl,de
+ld e,(hl)
+inc hl
+ld d,(hl)
+ex de,hl
+ld de,mloop
+push de
+jp (hl)
+dw run0,run1,run2,run3,run3,run5
+bios:
+push ix
+ld iy,(64704)
+call 28
+pop ix
+ei
+ret
+setw:
+ld a,l
+out (99h),a
+ld a,h
+or 64
+out (99h),a
+ret
+setr:
+ld a,l
+out (99h),a
+ld a,h
+out (99h),a
+ret
+r1:
+out (99h),a
+ld a,81h
+out (99h),a
+ret
+fil:
+ld e,a
+call setw
+ld a,e
+out (98h),a
+dec bc
+ld a,b
+or c
+jr nz,$-6
+ret
+ldv:
+ex de,hl
+call setw
+ex de,hl
+ld a,(hl)
+out (98h),a
+inc hl
+dec bc
+ld a,b
+or c
+jr nz,$-7
+ret
+clr:
+push bc
+call setw
+ld b,c
+ld a,96
+out (98h),a
+djnz $-2
+pop bc
+ld de,32
+add hl,de
+djnz clr
+ret
+putblk:
+push hl
+ld b,d
+call setw
+ld a,b
+out (98h),a
+add a,c
+out (98h),a
+add a,c
+ld b,a
+ld de,32
+add hl,de
+call setw
+ld a,b
+out (98h),a
+add a,c
+out (98h),a
+pop hl
+ret
+baddr:
+ld a,d
+rrca
+rrca
+ld l,a
+and 3
+ld h,a
+ld a,l
+and 192
+ld l,a
+ld a,e
+add a,a
+or l
+ld l,a
+ld de,6144
+add hl,de
+ret
+rnd:
+push bc
+ld a,(v+19)
+ld b,a
+add a,a
+add a,a
+add a,b
+inc a
+ld (v+19),a
+ld b,a
+ld a,r
+xor b
+pop bc
+ret
+rn:
+ld c,a
+call rnd
+cp c
+ret c
+sub c
+jr $-3
+pbyte:
+push af
+rrca
+rrca
+rrca
+rrca
+and 15
+add a,48
+out (98h),a
+pop af
+and 15
+add a,48
+out (98h),a
+ret
+pstr:
+ld a,(hl)
+inc hl
+or a
+ret z
+out (98h),a
+jr pstr
+prt:
+ld e,(hl)
+inc hl
+ld d,(hl)
+inc hl
+ld a,d
+or e
+ret z
+ex de,hl
+call setw
+ex de,hl
+call pstr
+jr prt
+ad:
+sub c
+ret nc
+neg
+ret
+sgn:
+cp c
+ld a,0
+ret z
+inc a
+ret nc
+ld a,255
+ret
+trig:
+xor a
+ld ix,216
+call bios
+or a
+ret nz
+ld a,1
+ld ix,216
+jp bios
+stick:
+xor a
+ld ix,213
+call bios
+or a
+ret nz
+ld a,1
+ld ix,213
+jp bios
+title:
+ld a,162
+call r1
+ld hl,6144
+ld bc,768
+ld a,96
+call fil
+ld hl,run5+81
+call prt
+ld hl,6912
+call setw
+ld a,208
+out (98h),a
+xor a
+ld (v+0),a
+ld (v+1),a
+ld a,226
+jp r1
+run0:
+ld hl,v+1
+inc (hl)
+jr nz,$+3
+dec (hl)
+ld a,(hl)
+cp 40
+ret c
+call trig
+or a
+ret z
+ld a,3
+ld (v+5),a
+ld a,1
+ld (v+6),a
+ld (v+7),a
+xor a
+ld hl,v+16
+ld (hl),a
+inc hl
+ld (hl),a
+inc hl
+ld (hl),a
+lvlst:
+ld a,162
+call r1
+ld hl,6144
+ld b,160
+push bc
+ld a,3
+call rn
+ld d,a
+ld c,8
+call putblk
+pop bc
+inc hl
+inc hl
+ld a,b
+dec a
+and 15
+jr nz,$+6
+ld de,32
+add hl,de
+djnz $-25
+ld hl,6784
+ld bc,128
+ld a,96
+call fil
+ld a,3
+call rn
+add a,3
+ld (v+21),a
+ld b,a
+ld hl,v+22
+push bc
+push hl
+ld a,3
+call rn
+add a,2
+ld d,a
+ld a,2
+call rn
+add a,2
+ld e,a
+ld a,15
+sub d
+call rn
+inc a
+ld b,a
+ld a,9
+sub e
+call rn
+inc a
+ld c,a
+pop hl
+ld (hl),b
+inc hl
+ld (hl),c
+inc hl
+ld (hl),d
+inc hl
+ld (hl),e
+inc hl
+push hl
+ld a,d
+add a,a
+ld d,a
+ld a,e
+add a,a
+ld e,a
+push de
+ld d,c
+ld e,b
+call baddr
+pop bc
+ld a,b
+ld b,c
+ld c,a
+call clr
+pop hl
+pop bc
+djnz $-65
+ld a,(v+6)
+add a,4
+cp 10
+jr c,$+4
+ld a,9
+ld (v+8),a
+ld (v+95),a
+ld a,12
+ld (v+96),a
+ld a,(v+21)
+call rn
+add a,a
+add a,a
+ld e,a
+ld d,0
+ld hl,v+22
+add hl,de
+ld de,v+91
+ld bc,4
+ldir
+ld a,(v+91+2)
+call rn
+ld hl,v+91
+add a,(hl)
+ld e,a
+ld a,(v+91+3)
+call rn
+ld hl,v+91+1
+add a,(hl)
+ld d,a
+call baddr
+call setr
+in a,(98h)
+cp 96
+jr nz,$+11
+ld d,104
+ld c,1
+call putblk
+jr $+12
+ld hl,v+96
+dec (hl)
+jr nz,$-70
+ld hl,v+8
+dec (hl)
+ld hl,v+95
+dec (hl)
+jr nz,$-85
+call actors
+xor a
+ld (v+13),a
+ld a,32
+ld (v+14),a
+ld a,3
+ld (v+15),a
+ld a,226
+call r1
+ready:
+ld a,1
+ld (v+0),a
+ld a,80
+ld (v+1),a
+jp sprites
+actors:
+ld a,120
+ld (v+2),a
+ld a,72
+ld (v+3),a
+ld a,1
+ld (v+4),a
+ld hl,run5+26
+ld de,v+42
+ld bc,20
+ldir
+ld a,(v+6)
+add a,3
+cp 8
+jr c,$+4
+ld a,7
+ld (v+9),a
+ret
+run1:
+call sprites
+ld hl,v+1
+dec (hl)
+ret nz
+ld a,2
+ld (v+0),a
+ret
+run2:
+call stick
+or a
+jr z,$+37
+ld e,a
+ld d,0
+ld hl,run5+8
+add hl,de
+add hl,de
+ld b,(hl)
+inc hl
+ld c,(hl)
+ld a,(v+2)
+ld d,b
+ld e,240
+call mva
+ld (v+2),a
+ld a,(v+3)
+ld d,c
+ld e,144
+call mva
+ld (v+3),a
+call enemies
+call pick
+call sprites
+ld a,(v+8)
+or a
+jr nz,$+18
+ld hl,v+6
+inc (hl)
+ld a,(v+7)
+add a,1
+daa
+ld (v+7),a
+jp lvlst
+ld hl,v+13
+inc (hl)
+ld a,(v+12)
+cp (hl)
+jr nz,$+19
+ld (hl),0
+ld hl,v+14
+dec (hl)
+ld hl,v+15
+set 0,(hl)
+ld a,(v+14)
+or a
+jr z,die
+ld hl,v+42
+ld b,4
+ld a,(v+2)
+ld c,a
+ld a,(hl)
+call ad
+cp 12
+jr nc,$+27
+inc hl
+inc hl
+ld a,(v+3)
+ld c,a
+ld a,(hl)
+call ad
+cp 12
+jr nc,$+15
+die:
+ld a,3
+ld (v+0),a
+ld a,110
+ld (v+1),a
+ret
+inc hl
+inc hl
+inc hl
+inc hl
+inc hl
+djnz $-42
+ret
+mva:
+add a,d
+cp e
+ret c
+ret z
+ld a,e
+bit 7,d
+ret z
+xor a
+ret
+enemies:
+ld a,(v+10)
+and 7
+ld hl,v+9
+cp (hl)
+ret nc
+ld hl,v+42
+ld b,0
+ld a,b
+cp 2
+jr z,$+104
+ld c,(hl)
+ld a,(v+2)
+call sgn
+ld (v+95),a
+ld a,(v+2)
+call ad
+ld (v+97),a
+inc hl
+inc hl
+ld c,(hl)
+ld a,(v+3)
+call sgn
+ld (v+96),a
+ld a,(v+3)
+call ad
+ld (v+98),a
+dec hl
+dec hl
+ld a,b
+cp 1
+jr nz,$+24
+ld a,(v+97)
+ld c,a
+ld a,(v+98)
+cp c
+jr c,$+8
+xor a
+ld (v+95),a
+jr $+27
+xor a
+ld (v+96),a
+jr $+21
+cp 3
+jr nz,$+17
+ld a,(v+10)
+and 64
+jr z,$+10
+ld a,(v+95)
+neg
+ld (v+95),a
+inc hl
+ld a,(v+95)
+ld (hl),a
+inc hl
+inc hl
+ld a,(v+96)
+ld (hl),a
+dec hl
+dec hl
+dec hl
+ld d,240
+call axis
+inc hl
+ld d,144
+call axis
+inc hl
+inc hl
+inc b
+ld a,b
+cp 4
+jr nz,$-124
+ret
+axis:
+ld a,(hl)
+inc hl
+add a,(hl)
+ld c,a
+ld a,d
+cp c
+jr c,$+6
+dec hl
+ld (hl),c
+inc hl
+ret
+ld a,(hl)
+neg
+ld (hl),a
+ret
+pick:
+ld a,(v+3)
+add a,8
+rrca
+rrca
+rrca
+and 31
+ld d,a
+cp 20
+ret nc
+ld a,(v+2)
+add a,8
+rrca
+rrca
+rrca
+and 31
+ld e,a
+ld a,d
+rrca
+rrca
+rrca
+ld l,a
+and 31
+add a,24
+ld h,a
+ld a,l
+and 224
+or e
+ld l,a
+call setr
+in a,(98h)
+cp 104
+ret c
+cp 108
+ret nc
+res 0,l
+bit 0,d
+jr z,$+6
+ld de,65504
+add hl,de
+ld d,96
+ld c,0
+call putblk
+ld hl,v+8
+dec (hl)
+ld a,(v+16+1)
+add a,1
+daa
+ld (v+16+1),a
+ld a,(v+16+2)
+adc a,0
+daa
+ld (v+16+2),a
+ld hl,v+15
+set 1,(hl)
+ret
+sprites:
+ld hl,v+70
+ld a,(v+3)
+dec a
+ld b,a
+ld a,(v+4)
+or a
+ld a,b
+jr nz,$+4
+ld a,209
+ld (hl),a
+inc hl
+ld a,(v+2)
+ld (hl),a
+inc hl
+ld (hl),0
+inc hl
+ld (hl),15
+inc hl
+ld de,v+42
+ld b,4
+ld a,(de)
+ld c,a
+inc de
+inc de
+ld a,(de)
+dec a
+ld (hl),a
+inc hl
+ld (hl),c
+inc hl
+ld (hl),4
+inc hl
+inc de
+inc de
+ld a,(de)
+ld (hl),a
+inc hl
+inc de
+djnz $-19
+ld hl,6912
+call setw
+ld hl,v+70
+ld b,21
+ld a,(hl)
+out (98h),a
+inc hl
+djnz $-4
+ld hl,v+15
+bit 0,(hl)
+jr z,$+38
+res 0,(hl)
+ld hl,6816
+call setw
+ld a,(v+14)
+ld c,a
+or a
+jr z,$+10
+ld b,a
+ld a,119
+out (98h),a
+nop
+djnz $-5
+ld a,32
+sub c
+jr z,$+10
+ld b,a
+ld a,96
+out (98h),a
+nop
+djnz $-5
+ld hl,v+15
+bit 1,(hl)
+ret z
+res 1,(hl)
+ld hl,6848
+call setw
+ld hl,run5+62
+call pstr
+ld a,(v+5)
+add a,48
+out (98h),a
+call pstr
+push hl
+ld hl,v+16+2
+ld b,3
+call $+13
+pop hl
+call pstr
+ld a,(v+7)
+jp pbyte
+ld a,(hl)
+dec hl
+call pbyte
+djnz $-5
+ret
+run3:
+ld a,(v+10)
+and 4
+rrca
+rrca
+ld (v+4),a
+call sprites
+ld hl,v+1
+dec (hl)
+ret nz
+ld a,1
+ld (v+4),a
+ld hl,v+5
+dec (hl)
+jr nz,$+29
+ld hl,6912
+call setw
+ld a,208
+out (98h),a
+ld hl,run5+173
+call prt
+ld a,5
+ld (v+0),a
+ld a,180
+ld (v+1),a
+ret
+call actors
+ld hl,v+15
+set 1,(hl)
+jp ready
+run5:
+ld hl,v+1
+dec (hl)
+ret nz
+jp title
+db 0,0,0,254,2,254,2,0,2,2,0,2,254,2,254,0,254,254
+db 8,1,8,1,13
+db 232,1,8,1,7
+db 8,1,136,1,3
+db 232,1,136,1,5
+db 27,27,22,22,241,241,241,241,241,241,241,241,241,91h,49,177
+db "LIFE ",0," SCORE ",0," LV ",0
+dw 6345
+db "THE INCA WALL",0
+dw 6435
+db "TAKE ALL THE RED CHAKANAS",0
+dw 6502
+db "AVOID THE GUARDIANS",0
+dw 6565
+db "PUSH SPACE OR TRIGGER",0
+dw 0
+dw 6475
+db "GAME OVER",0
+dw 0
+db 255,128,159,159,152,153,153,153,255,128,128,128,128,129,129,159
+db 255,128,159,159,152,159,159,129,255,1,249,249,25,249,249,129
+db 255,1,1,31,31,255,255,255,255,1,249,249,25,153,153,153
+db 153,153,153,152,159,159,128,255,159,128,128,128,128,128,128,255
+db 129,159,159,128,159,159,128,255,129,249,249,1,249,249,1,255
+db 255,1,1,1,1,1,1,255,153,153,153,25,249,249,1,255
+db 0,0,3,3,15,15,120,120,0,0,192,192,240,240,30,30
+db 120,120,15,15,3,3,0,0,30,30,240,240,192,192,0,0
+db 0,7,15,25,25,31,28,15,7,31,63,55,55,7,12,28
+db 0,224,240,152,152,248,56,240,224,248,252,236,236,224,48,56
+db 0,3,15,31,61,59,127,127,120,125,63,63,31,13,24,48
+db 0,192,240,248,188,220,254,254,30,190,252,252,248,176,24,12
+v:
+ds 100

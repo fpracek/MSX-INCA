@@ -31,3 +31,14 @@ Set `SJASMPLUS` to the sjasmplus executable (or have it in the PATH) and run `py
 Open `INCA.SPB` in the editor and press F5. This program needs more room than the first releases give an assembler block (the output buffer of QASM.OVL
 was 7936 characters, enough for about 1600 bytes): **SamPr Basic 1.4.1 or newer**, or the `QASM.OVL` of the development tree (`VARS equ 9400h`, `TMP equ VARS+0800h`,
 8960 characters), is needed to compile it. The prebuilt `INCA.COM` runs anywhere.
+
+## BIN version for MSX-BASIC (`BIN/`)
+The same source with `OPTION TARGET BIN` as the first line: `BIN/INCA.BIN` is a BLOAD program (loaded at 8400h, no DOS needed). From the BASIC prompt:
+
+```
+CLEAR 200,&H83FF
+BLOAD"INCA.BIN",R
+```
+
+Tested in openMSX (Philips NMS 8250): title, game, lives and HUD. The cartridge (ROM) target does not accept this assembler source; the ROM of the full game is
+in [`../BASIC/ROM`](../BASIC/ROM).

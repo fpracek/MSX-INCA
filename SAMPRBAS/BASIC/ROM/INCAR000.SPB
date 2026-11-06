@@ -1,0 +1,38 @@
+OPTION TARGET ROM_ASCII8
+OPTION LABELS
+' THE INCA WALL - SamPr Basic version, ROM cartridge (ASCII8). Same game as the .COM and .BIN (see ../BASIC): the routines of
+' the original GOSUB program are SUBs spread in segments 1-3 (segment 0 keeps the DATA and the main loop).
+' Take every red chakana, avoid the four guardians. 90 seconds a level, 3 lives; cursor keys or joystick, SPACE / fire starts.
+DIM gb(524), fx(127), fs(6), ex(3), ef(3), ey(3), eg(3), edx(3), edy(3), rm(31), ms(127), mz(17), pr(63), dd(17), t8(255), ecol(3)
+SCREEN 1, 2
+COLOR 15, 1, 1
+CALL setup
+CALL title
+lt = TIMER
+DO
+WHILE TIMER = lt : WEND
+lt = TIMER
+frm = frm + 1
+CALL sfxtick
+SELECT CASE st
+CASE 0 : CALL runtitle
+CASE 1 : CALL runready
+CASE 2 : CALL runplay
+CASE 3 : CALL rundie
+CASE 4 : CALL runbonus
+CASE 5 : CALL runover
+END SELECT
+LOOP
+
+DATA "oh20P820P87oP9nOV9VIVOn0PH67QinOoh20P820ooooPH61PH61POn0P820PH6Ooh27Qhb<V9SoP9nOV9nOPOl10@410@61o`7inAWinH7o0N7QnOWoool10@410Ooooh61PH61PH7o0@4O7oooool1nOT=3@L7o`7inAVIVIV1P820P820oiVIVIROWh3oQhN1PH20P?n0P820P820oh61PH61PH7oWh20P820"
+DATA "P?nHV9nOP820oh6OWh2OWh3oP@410@410On1nOT1nOT1ooWihN410@7o0@410@410On1PH61PH61ool10@410@7o1`Ooo`410OnIVITInOT1o`000`<?3gQh0030`?3`7QihN0l?0`<001hNl?30`0000820P820P000`<30`<30003Ph>3Ph>000?3`l?3`l000n?Shn?Sh003lo?clo?`00?kno_knoP00oooo"
+DATA "oooo03anfooKOS`04A\K5QJA<O7alO7alO7a\O7alO7alO7alO7alO7alO401`lI6AlL3`LO?cLg1``L0>3`V9Sh>?3Pn?c\k>0`>0073aTI7a`?1alo=cL73SP0h?2HV?Phl>3ho>c\h70L00<?7cdkOgmhOClo7`dH<030l?Rlg?kn7[klo?R`60`00`lO>ceoOgQm?clO3``60<3`n=blo_hN__cln?0`H000"
+DATA 2,112,0,13, 2,84,0,13, 3,56,0,12, 0
+DATA 2,113,0,14, 4,85,0,13, 0
+DATA 4,213,0,12, 4,169,0,12, 4,142,0,12, 8,107,0,13, 0
+DATA 4,107,0,14, 4,135,0,14, 4,169,0,13, 4,213,0,13, 4,254,0,12, 4,100,1,12, 6,200,1,11, 8,44,2,10, 0
+DATA 10,107,0,13, 10,142,0,13, 10,179,0,13, 30,213,0,12, 0
+DATA 4,214,0,15, 4,170,0,15, 4,143,0,15, 4,107,0,15, 4,85,0,15, 4,71,0,15, 4,85,0,15, 14,53,0,15, 0
+DATA "91\R2B0B8Q8P4QTToa8P4R8990TW4R@T8Q8P4_lB:A8W2B@98Q8P4QTT50TG2ATBoPTBo`T94_l92A874_l91a;o2@LB1A;o2@DBo`T54P@Bo`T44_l911894_l92A;o2@TB11;o2@@Bo`T44_hDB19844P;B1A82dSn"
+DATA 855,807,762,719,679,641,605,571,539,508,480,453
+DATA 0,0, 0,-1, 1,-1, 1,0, 1,1, 0,1, -1,1, -1,0, -1,-1
